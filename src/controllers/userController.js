@@ -1,4 +1,5 @@
 import User from "../models/userSchema.js";
+import { generateTokens } from "../utils/token.js";
 import { sendOTP } from "./otpController.js";
 import bcrypt from "bcryptjs";
 
@@ -61,5 +62,32 @@ export const updateUserPin = async (req, res) => {
   } catch (error) {
     console.error("❌ Error updating PIN:", error.message);
     return res.status(500).json({ message: "Failed to update PIN" });
+  }
+};
+
+export const loginUser = async (req, res) => {
+  const { phone, pin } = req.body;
+
+  if (!phone || !pin) {
+    return res.status(400).json({ message: "Phone and PIN are required" });
+  }
+
+  try {
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (!user.isApproved) {
+      return res.status(403).json({ message: "User not approved yet" });
+    }
+    const isMatch = await bcrypt.compare(pin, user.pin);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid PIN" });
+    }
+    const tokens = generateTokens(user);
+    return res.status(200).json({ message: "Login successful", user, tokens });
+  } catch (error) {
+    console.error("❌ Error logging in user:", error.message);
+    return res.status(500).json({ message: "Failed to login" });
   }
 };
