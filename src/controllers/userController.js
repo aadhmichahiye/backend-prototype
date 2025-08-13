@@ -5,23 +5,31 @@ import bcrypt from "bcryptjs";
 
 export const createUser = async (req, res) => {
   try {
-    const { name, email, phone, address, role } = req.body;
+    const { name, phone, role, pin } = req.body;
     if (!name || !phone) {
       return res.status(400).json({ message: "Name and phone are required" });
     }
+    if (!pin) {
+      return res.status(400).json({ message: "PIN is required" });
+    }
     if (!["client", "contractor"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
+    }
+    if (!/^\d{6}$/.test(pin)) {
+      return res.status(400).json({ message: "PIN must be exactly 6 digits" });
     }
     const userExists = await User.findOne({ phone });
     if (userExists) {
       return res.status(409).json({ message: "User already exists" });
     }
+    const hashPin = await bcrypt.hash(pin, 10);
     const user = await User.create({
       name,
       phone,
       role,
-      status: "pending",
-      isApproved: false, // Default to true
+      pin: hashPin,
+      status: "active",
+      isApproved: true, // Default to true
     });
     return res.status(201).json({ message: "User created", user });
   } catch (err) {
@@ -31,7 +39,7 @@ export const createUser = async (req, res) => {
 };
 export const updateUserPin = async (req, res) => {
   const userId = req.user.id; // ✅ Secure source
-  const { pin, oldPin } = req.body;
+  const { pin, old_pin } = req.body;
 
   if (!/^\d{6}$/.test(pin)) {
     return res.status(400).json({ message: "PIN must be exactly 6 digits" });
@@ -43,11 +51,11 @@ export const updateUserPin = async (req, res) => {
 
     // Check old PIN if user already has one
     if (user.pin) {
-      if (!oldPin) {
+      if (!old_pin) {
         return res.status(400).json({ message: "Old PIN is required" });
       }
 
-      const isMatch = await bcrypt.compare(oldPin, user.pin);
+      const isMatch = await bcrypt.compare(old_pin, user.pin);
       if (!isMatch) {
         return res.status(401).json({ message: "Incorrect old PIN" });
       }
