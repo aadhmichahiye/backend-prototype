@@ -13,6 +13,7 @@ export const createJobPost = async (req, res) => {
       startDate,
       endDate,
       requiredWorkers,
+      status,
     } = req.body;
     if (
       !title ||

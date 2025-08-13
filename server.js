@@ -5,6 +5,9 @@ import connectDB from "./src/config/db.js";
 import otpRoutes from "./src/routes/otpRoutes.js";
 import userRoutes from "./src/routes/userRoutes.js";
 import jobPostRoutes from "./src/routes/jobPostRoutes.js";
+import manpowerPost from "./src/routes/manpowerPostRoutes.js";
+import availableWorkers from "./src/routes/availableWorkerRoutes.js";
+import requiredWorkers from "./src/routes/requiredWorkerRoute.js";
 
 dotenv.config();
 const app = express();
@@ -25,6 +28,9 @@ app.get("/", (req, res) => {
 app.use("/api/otp", otpRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/job-posts", jobPostRoutes);
+app.use("/api/manpower-post", manpowerPost);
+app.use("/api/workers", availableWorkers);
+app.use("/api/required-workers", requiredWorkers);
 
 app.listen(PORT, async () => {
   try {

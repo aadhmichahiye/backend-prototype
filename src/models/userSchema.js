@@ -55,6 +55,17 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+userSchema.set("toJSON", {
+  virtuals: true,
+  transform: (_, ret) => {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    delete ret.pin; // Optional
+    return ret;
+  },
+});
+
 const User = mongoose.model("User", userSchema);
 
 export default User;

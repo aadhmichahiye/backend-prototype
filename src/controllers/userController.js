@@ -31,7 +31,19 @@ export const createUser = async (req, res) => {
       status: "active",
       isApproved: true, // Default to true
     });
-    return res.status(201).json({ message: "User created", user });
+    const sanitizedUser = {
+      _id: user._id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      isApproved: user.isApproved,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+    return res
+      .status(201)
+      .json({ message: "User created", user: sanitizedUser });
   } catch (err) {
     console.error("❌ Error creating user:", err.message);
     res.status(500).json({ message: "Server error" });
@@ -92,8 +104,22 @@ export const loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid PIN" });
     }
-    const tokens = generateTokens(user);
-    return res.status(200).json({ message: "Login successful", user, tokens });
+
+    const sanitizedUser = {
+      _id: user._id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      isApproved: user.isApproved,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    const tokens = generateTokens(sanitizedUser);
+    return res
+      .status(200)
+      .json({ message: "Login successful", user: sanitizedUser, tokens });
   } catch (error) {
     console.error("❌ Error logging in user:", error.message);
     return res.status(500).json({ message: "Failed to login" });
