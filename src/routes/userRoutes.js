@@ -9,7 +9,7 @@ import { verifyAccessToken } from "../middleware/auth.js";
 const router = express.Router();
 
 router.post("/register", createUser);
-router.post("/pin", verifyAccessToken, updateUserPin);
+router.patch("/pin", verifyAccessToken, updateUserPin);
 router.get("/login", loginUser);
 
 export default router;
