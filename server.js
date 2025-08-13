@@ -4,6 +4,7 @@ import cors from "cors";
 import connectDB from "./src/config/db.js";
 import otpRoutes from "./src/routes/otpRoutes.js";
 import userRoutes from "./src/routes/userRoutes.js";
+import jobPostRoutes from "./src/routes/jobPostRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -23,6 +24,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/otp", otpRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/job-posts", jobPostRoutes);
 
 app.listen(PORT, async () => {
   try {
