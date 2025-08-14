@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const manpowerPostSchema = new mongoose.Schema(
   {
-    contractorId: {
+    details: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -36,6 +36,13 @@ const manpowerPostSchema = new mongoose.Schema(
       type: String,
       enum: ["open", "closed", "paused"],
       default: "open",
+    },
+    name: {
+      type: String,
+      required: true,
+    },
+    contactDetails: {
+      phone: { type: String },
     },
     startDate: Date,
     endDate: Date,

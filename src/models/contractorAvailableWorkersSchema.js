@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const AvailableWorkerSchema = new mongoose.Schema({
-  manpowerPostId: {
+  jobDetails: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "ManpowerPost",
     required: true,

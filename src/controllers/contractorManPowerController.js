@@ -1,9 +1,11 @@
-import AvailableWorker from "../models/availableWorkersSchema.js";
-import ManpowerPost from "../models/manpowerPostSchema.js";
+import AvailableWorker from "../models/contractorAvailableWorkersSchema.js";
+import ManpowerPost from "../models/contractorManPowerAvailableSchema.js";
+import User from "../models/userSchema.js";
 
 export const createManpower = async (req, res) => {
   try {
     const contractorId = req.user.id; // Securely from JWT middleware
+    const user = await User.findById(contractorId);
     const {
       city,
       location,
@@ -23,17 +25,21 @@ export const createManpower = async (req, res) => {
     }
 
     const manpowerPost = await ManpowerPost.create({
-      contractorId,
+      details: contractorId,
       city,
       location,
       status: "open",
+      contactDetails: {
+        phone: req.user.phone,
+      },
+      name: user.name,
     });
 
     const createdWorkers = await AvailableWorker.insertMany(
       availableWorkers.map((worker) => ({
         type: worker.type,
         count: worker.count,
-        manpowerPostId: manpowerPost._id,
+        jobDetails: manpowerPost._id,
         status: "available",
       }))
     );
@@ -53,4 +59,3 @@ export const createManpower = async (req, res) => {
     res.status(500).json({ message: "Server error while posting manpower" });
   }
 };
-
