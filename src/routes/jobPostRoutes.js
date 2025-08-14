@@ -1,8 +1,8 @@
 import express from "express";
 
-import { createJobPost } from "../controllers/jobPostController.js";
 import { verifyAccessToken } from "../middleware/auth.js";
 import { authorizeClient } from "../middleware/authorizeClient.js";
+import { createJobPost } from "../controllers/clientJobPostController.js";
 
 const router = express.Router();
 

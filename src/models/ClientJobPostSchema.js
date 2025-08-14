@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const jobPostSchema = new mongoose.Schema(
   {
-    clientId: {
+    details: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -36,11 +36,14 @@ const jobPostSchema = new mongoose.Schema(
       enum: ["open", "closed", "paused"],
       default: "open",
     },
+    contactDetails: {
+      phone: { type: String },
+    },
     startDate: Date,
     endDate: Date,
   },
   { timestamps: true }
 );
 
-const JobPost = mongoose.model("JobPost", jobPostSchema);
+const JobPost = mongoose.model("ClientJobPost", jobPostSchema);
 export default JobPost;

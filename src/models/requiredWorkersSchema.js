@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 
 const requiredWorkerSchema = new mongoose.Schema({
-  jobPostId: {
+  jobDetails: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "JobPost",
+    ref: "ClientJobPost",
     required: true,
     index: true,
   },
@@ -25,5 +25,8 @@ const requiredWorkerSchema = new mongoose.Schema({
   },
 });
 
-const RequiredWorker = mongoose.model("RequiredWorker", requiredWorkerSchema);
+const RequiredWorker = mongoose.model(
+  "ClientRequiredWorker",
+  requiredWorkerSchema
+);
 export default RequiredWorker;

@@ -1,4 +1,4 @@
-import JobPost from "../models/jobPostSchema.js";
+import JobPost from "../models/ClientJobPostSchema.js";
 import RequiredWorker from "../models/requiredWorkersSchema.js";
 import { parseDateFromDDMMYYYY } from "../utils/dateParser.js";
 
@@ -13,7 +13,6 @@ export const createJobPost = async (req, res) => {
       startDate,
       endDate,
       requiredWorkers,
-      status,
     } = req.body;
     if (
       !title ||
@@ -43,7 +42,7 @@ export const createJobPost = async (req, res) => {
     }
 
     const jobPost = await JobPost.create({
-      clientId,
+      details: clientId,
       title,
       description,
       city,
@@ -51,13 +50,16 @@ export const createJobPost = async (req, res) => {
       startDate: parsedStartDate,
       endDate: parsedEndDate,
       status: "open",
+      contactDetails: {
+        phone: req.user.phone,
+      },
     });
 
     const createdWorkers = await RequiredWorker.insertMany(
       requiredWorkers.map((worker) => ({
         type: worker.type,
         count: worker.count,
-        jobPostId: jobPost._id,
+        jobDetails: jobPost._id,
         status: "open",
       }))
     );
