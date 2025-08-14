@@ -1,9 +1,9 @@
-import AvailableWorker from "../models/availableWorkersSchema.js";
+import AvailableWorker from "../models/contractorAvailableWorkersSchema.js";
 
 export const getAllAvailableWorkers = async (req, res) => {
   try {
     const availableWorkers = await AvailableWorker.find({ status: "available" })
-      .populate("manpowerPostId", "city location status")
+      .populate("jobDetails", "city location status contactDetails name")
       .exec();
 
     res.status(200).json({
@@ -14,4 +14,4 @@ export const getAllAvailableWorkers = async (req, res) => {
     console.error("❌ Error fetching available workers:", error.message);
     res.status(500).json({ message: "Server error while fetching workers" });
   }
-}
+};

@@ -11,7 +11,6 @@ export const verifyAccessToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    console.log("user", req.user);
     req.user = decoded; // decoded should contain { id, role, ... }
     next();
   } catch (err) {

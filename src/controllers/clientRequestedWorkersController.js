@@ -1,4 +1,4 @@
-import RequiredWorker from "../models/requiredWorkersSchema.js";
+import RequiredWorker from "../models/clientRequiredWorkersSchema.js";
 
 export const getAllRequiredWorkers = async (req, res) => {
   try {

@@ -1,5 +1,5 @@
-import JobPost from "../models/ClientJobPostSchema.js";
-import RequiredWorker from "../models/requiredWorkersSchema.js";
+import JobPost from "../models/clientJobPostSchema.js";
+import RequiredWorker from "../models/clientRequiredWorkersSchema.js";
 import { parseDateFromDDMMYYYY } from "../utils/dateParser.js";
 
 export const createJobPost = async (req, res) => {
