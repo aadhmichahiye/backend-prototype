@@ -10,6 +10,6 @@ const router = express.Router();
 
 router.post("/register", createUser);
 router.patch("/pin", verifyAccessToken, updateUserPin);
-router.get("/login", loginUser);
+router.post("/login", loginUser);
 
 export default router;
