@@ -9,6 +9,7 @@ import manpowerPost from "./src/routes/contractorManPowerPostRoutes.js";
 import availableWorkers from "./src/routes/contractorAvailableWorkerRoutes.js";
 import requiredWorkers from "./src/routes/clientRequiredWorkersEoutes.js";
 import cookieParser from "cookie-parser";
+import authRoute from "./src/routes/auth.js";
 
 dotenv.config();
 const app = express();
