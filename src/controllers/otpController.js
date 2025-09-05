@@ -2,7 +2,7 @@
 import twilio from "twilio";
 import dotenv from "dotenv";
 import User from "../models/userSchema.js";
-import { generateTokens } from "../utils/token.js";
+import { generateAccessToken } from "../utils/token.js";
 dotenv.config();
 
 const client = twilio(
@@ -48,7 +48,7 @@ export const verifyOTP = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const tokens = generateTokens(user);
+    const tokens = generateAccessToken(user);
     res
       .status(200)
       .json({ message: "OTP verified successfully", user, tokens });

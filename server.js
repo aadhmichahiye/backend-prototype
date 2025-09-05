@@ -15,6 +15,13 @@ const PORT = process.env.PORT || 5000;
 
 // Be explicit with CORS
 app.use(cors());
+app.use(cookieParser());
+
+// example CORS enabling (Express)
+// app.use(cors({
+//   origin: process.env.CLIENT_ORIGIN, // e.g. https://yourfrontend.com
+//   credentials: true,
+// }));
 
 app.use(express.json());
 
@@ -25,6 +32,7 @@ app.get("/", (req, res) => {
   res.send("🚀 Backend Prototype Running");
 });
 
+app.use("/api/auth", authRoute);
 app.use("/api/otp", otpRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/client-job-posts", jobPostRoutes);

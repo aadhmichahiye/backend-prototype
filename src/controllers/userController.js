@@ -1,5 +1,5 @@
 import User from "../models/userSchema.js";
-import { generateTokens } from "../utils/token.js";
+import { generateAccessToken, generateRefreshToken } from "../utils/token.js";
 import { sendOTP } from "./otpController.js";
 import bcrypt from "bcryptjs";
 
@@ -94,16 +94,11 @@ export const loginUser = async (req, res) => {
 
   try {
     const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    if (!user.isApproved) {
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.isApproved)
       return res.status(403).json({ message: "User not approved yet" });
-    }
     const isMatch = await bcrypt.compare(pin, user.pin);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid PIN" });
-    }
+    if (!isMatch) return res.status(401).json({ message: "Invalid PIN" });
 
     const sanitizedUser = {
       _id: user._id,
@@ -116,10 +111,33 @@ export const loginUser = async (req, res) => {
       updatedAt: user.updatedAt,
     };
 
-    const tokens = generateTokens(sanitizedUser);
+    // generate access token (put minimal info)
+    const accessToken = generateAccessToken({ sub: user._id, role: user.role });
+
+    // generate refresh token (signed JWT with jti) and persist token record
+    const { refreshTokenJwt, tokenId, expiresAt } = await generateRefreshToken(
+      user._id
+    );
+
+    // Set refresh token cookie (HttpOnly)
+    // Cookie options — adapt domain/path per your deployment
+    res.cookie("refreshToken", refreshTokenJwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // only send over HTTPS in prod
+      sameSite: "Strict",
+      path: "/",
+      expires: new Date(expiresAt),
+      // Optionally add `domain` if needed: domain: 'yourdomain.com'
+    });
+
+    // Return access token and user (no refresh token in body)
     return res
       .status(200)
-      .json({ message: "Login successful", user: sanitizedUser, tokens });
+      .json({
+        message: "Login successful",
+        user: sanitizedUser,
+        tokens: { accessToken },
+      });
   } catch (error) {
     console.error("❌ Error logging in user:", error.message);
     return res.status(500).json({ message: "Failed to login" });
