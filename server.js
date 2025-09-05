@@ -16,14 +16,25 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Be explicit with CORS
-app.use(cors());
-app.use(cookieParser());
+const FRONTEND_ORIGIN = "http://localhost:5173";
+
+app.use(
+  cors({
+    origin: FRONTEND_ORIGIN, // must be exact when using credentials
+    credentials: true, // allow cookies to be sent
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  })
+);
+// app.use(cookieParser());
 
 // example CORS enabling (Express)
 // app.use(cors({
 //   origin: process.env.CLIENT_ORIGIN, // e.g. https://yourfrontend.com
 //   credentials: true,
 // }));
+
+app.use(cookieParser());
 
 app.use(express.json());
 

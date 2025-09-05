@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import RefreshToken from "../models/refreshToken.js";
 
 const REFRESH_EXPIRES_DAYS = parseInt(
-  process.env.REFRESH_TOKEN_EXPIRES_DAYS || "30",
+  process.env.REFRESH_TOKEN_EXPIRY || "7",
   10
 );
 const REFRESH_EXPIRES_MS = REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;

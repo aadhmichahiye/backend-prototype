@@ -6,32 +6,43 @@ import {
   generateRefreshToken,
   generateAccessToken,
 } from "../utils/token.js";
-// import RefreshToken from "../models/refreshToken";
+import RefreshToken from "../models/refreshToken.js";
 import User from "../models/userSchema.js";
 import bcrypt from "bcryptjs";
 
 export const refreshAccessToken = async (req, res) => {
   try {
-    // Read cookie
     const tokenFromCookie = req.cookies?.refreshToken;
     if (!tokenFromCookie) {
       return res.status(401).json({ message: "No refresh token provided" });
     }
 
-    // Verify signature first
+    // 1) Verify refresh JWT and get payload
     let payload;
     try {
-      payload = jwt.verify(tokenFromCookie, process.env.JWT_REFRESH_SECRET);
+      payload = jwt.verify(
+        tokenFromCookie,
+        process.env.JWT_REFRESH_SECRET // must match secret used in generateRefreshToken
+      );
     } catch (err) {
+      console.error("Invalid/expired refresh token:", err.message);
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
+    // payload now looks like: { jti: 'uuid-string', iat: 17123..., exp: 17189... }
     const tokenId = payload.jti;
-    if (!tokenId)
-      return res.status(401).json({ message: "Invalid token payload" });
 
-    // Find DB record
-    const record = await findRefreshTokenRecord(tokenId);
+    // 2) Find refresh token record in DB
+    let record;
+    try {
+      record = await RefreshToken.findOne({ tokenId }).lean();
+    } catch (dbErr) {
+      console.error("DB error when looking up refresh token:", dbErr);
+      return res.status(503).json({
+        message: "Authentication service unavailable. Please try again later.",
+      });
+    }
+
     if (!record || record.revoked) {
       return res
         .status(401)
@@ -39,42 +50,21 @@ export const refreshAccessToken = async (req, res) => {
     }
 
     if (new Date(record.expiresAt) < new Date()) {
-      // expired
-      await revokeRefreshToken(tokenId);
       return res.status(401).json({ message: "Refresh token expired" });
     }
 
-    // At this point token is valid. Get the user id and issue new access token
-    const userId = record.userId;
-    const user = await User.findById(userId);
-    if (!user) return res.status(401).json({ message: "User not found" });
+    // 3) Load user
+    const user = await User.findById(record.userId).lean();
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
 
-    // Issue new access token
+    // 4) Issue a new access token
     const newAccessToken = generateAccessToken({
       sub: user._id,
       role: user.role,
     });
 
-    // Rotate refresh token: create new refresh JWT & db record, revoke old record
-    const {
-      refreshTokenJwt: newRefreshJwt,
-      tokenId: newTokenId,
-      expiresAt: newExpiresAt,
-    } = await generateRefreshToken(user._id);
-
-    // mark old token revoked and link to new token
-    await revokeRefreshToken(tokenId, newTokenId);
-
-    // set new cookie (browser will replace previous)
-    res.cookie("refreshToken", newRefreshJwt, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      path: "/",
-      expires: new Date(newExpiresAt),
-    });
-
-    // Return new access token
     return res.status(200).json({ accessToken: newAccessToken });
   } catch (err) {
     console.error("refreshAccessToken error:", err);
