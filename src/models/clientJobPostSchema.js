@@ -25,6 +25,10 @@ const jobPostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    pinCode: {
+      type: String,
+      required: true,
+    },
     requiredWorkers: [
       {
         type: mongoose.Schema.Types.ObjectId,

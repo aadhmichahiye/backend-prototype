@@ -59,10 +59,13 @@ export const refreshAccessToken = async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
 
+    console.log("user info from auth controller", user);
+
     // 4) Issue a new access token
     const newAccessToken = generateAccessToken({
-      sub: user._id,
+      id: user._id || user.id,
       role: user.role,
+      phone: user.phone,
     });
 
     return res.status(200).json({ accessToken: newAccessToken });
@@ -126,7 +129,7 @@ export const loginUser = async (req, res) => {
     };
 
     // generate access token (put minimal info)
-    const accessToken = generateAccessToken({ sub: user._id, role: user.role });
+    const accessToken = generateAccessToken({ id: user._id, role: user.role });
 
     // generate refresh token (signed JWT with jti) and persist token record
     const { refreshTokenJwt, tokenId, expiresAt } = await generateRefreshToken(
