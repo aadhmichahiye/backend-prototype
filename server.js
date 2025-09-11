@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Be explicit with CORS
-const FRONTEND_ORIGIN = "http://localhost:5173";
+const FRONTEND_ORIGIN = "https://aadhmichahiye.com/";
 
 app.use(
   cors({
