@@ -16,14 +16,21 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Be explicit with CORS
-const FRONTEND_ORIGIN = "https://aadhmichahiye.com/";
+
+const allowed = [
+  "http://localhost:5173",
+  "https://aadhmichahiye.com",
+  "https://www.aadhmichahiye.com",
+];
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN, // must be exact when using credentials
-    credentials: true, // allow cookies to be sent
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow curl/postman or same-origin requests
+      if (allowed.indexOf(origin) !== -1) return callback(null, true);
+      return callback(new Error("CORS not allowed"), false);
+    },
+    credentials: true,
   })
 );
 // app.use(cookieParser());
