@@ -20,6 +20,7 @@ const PORT = process.env.PORT || 5000;
 const allowed = [
   "http://localhost:5173",
   "https://aadhmichahiye.com",
+  "https://dev.aadhmichahiye.com",
   "https://www.aadhmichahiye.com",
 ];
 
