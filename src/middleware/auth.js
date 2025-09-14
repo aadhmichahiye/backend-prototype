@@ -31,9 +31,10 @@ export const verifyAccessToken = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid access token" });
     }
 
-    console.debug("decoded jwt from auth middleware:", decoded);
-
     const userId = decoded.id || decoded._id || decoded.userId;
+
+    console.log("✅ Auth middleware, userId from token:", decoded);
+
     if (!userId)
       return res.status(401).json({ message: "Token missing user id" });
 
@@ -55,7 +56,7 @@ export const verifyAccessToken = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error("Auth middleware error:", err);
+    console.error("x Auth middleware error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

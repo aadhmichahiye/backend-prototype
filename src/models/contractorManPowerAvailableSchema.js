@@ -26,6 +26,10 @@ const manpowerPostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    pinCode: {
+      type: String,
+      required: false,
+    },
     availableWorkers: [
       {
         type: mongoose.Schema.Types.ObjectId,

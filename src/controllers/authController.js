@@ -59,7 +59,6 @@ export const refreshAccessToken = async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    console.log("user info from auth controller", user);
 
     // 4) Issue a new access token
     const newAccessToken = generateAccessToken({

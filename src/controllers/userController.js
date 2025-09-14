@@ -112,7 +112,7 @@ export const loginUser = async (req, res) => {
     };
 
     // generate access token (put minimal info)
-    const accessToken = generateAccessToken({ sub: user._id, role: user.role });
+    const accessToken = generateAccessToken({ id: user._id, role: user.role });
 
     // generate refresh token (signed JWT with jti) and persist token record
     const { refreshTokenJwt, tokenId, expiresAt } = await generateRefreshToken(

@@ -49,7 +49,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  console.log("Auth endpoint hit");
   res.send("🚀 Backend Prototype Running");
 });
 
@@ -57,7 +56,7 @@ app.use("/api/auth", authRoute);
 app.use("/api/otp", otpRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/client-job-posts", jobPostRoutes);
-app.use("/api/contractor-manpower-post", manpowerPost);
+app.use("/api/contractor-manpower-posts", manpowerPost);
 app.use("/api/contractor-workers", availableWorkers);
 app.use("/api/required-workers", requiredWorkers);
 
