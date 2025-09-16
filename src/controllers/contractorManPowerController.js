@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import AvailableWorker from "../models/contractorAvailableWorkersSchema.js";
 import ManpowerPost from "../models/contractorManPowerAvailableSchema.js";
 import User from "../models/userSchema.js";
@@ -117,7 +118,10 @@ export const getAllManpowerPosts = async (req, res) => {
   try {
     // pagination & params
     const page = Math.max(1, parseInt(req.query.page || "1", 10));
-    const limit = Math.max(1, Math.min(200, parseInt(req.query.limit || "20", 10)));
+    const limit = Math.max(
+      1,
+      Math.min(200, parseInt(req.query.limit || "20", 10))
+    );
     const skip = (page - 1) * limit;
 
     const {
@@ -173,15 +177,18 @@ export const getAllManpowerPosts = async (req, res) => {
     // 3) if workerType or minCount present, filter posts which have at least one worker matching
     if (workerType || minCount) {
       const elemMatch = {};
-      if (workerType) elemMatch.type = { $regex: String(workerType).trim(), $options: "i" };
+      if (workerType)
+        elemMatch.type = { $regex: String(workerType).trim(), $options: "i" };
       if (minCount) elemMatch.count = { $gte: Number(minCount) };
-      pipeline.push({ $match: { availableWorkers: { $elemMatch: elemMatch } } });
+      pipeline.push({
+        $match: { availableWorkers: { $elemMatch: elemMatch } },
+      });
     }
 
     // 4) project only required fields (we keep availableWorkers as list of objects)
     pipeline.push({
       $project: {
-        details: 1,           // contractor id
+        details: 1, // contractor id
         _id: 1,
         title: 1,
         name: 1,
@@ -222,7 +229,9 @@ export const getAllManpowerPosts = async (req, res) => {
     // Run aggregation
     const agg = await ManpowerPost.aggregate(pipeline).allowDiskUse(true);
 
-    const metaDoc = (agg[0] && agg[0].metadata && agg[0].metadata[0]) || { total: 0 };
+    const metaDoc = (agg[0] && agg[0].metadata && agg[0].metadata[0]) || {
+      total: 0,
+    };
     const total = metaDoc.total || 0;
     const data = (agg[0] && agg[0].data) || [];
 
@@ -235,7 +244,79 @@ export const getAllManpowerPosts = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error fetching manpower posts:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
+export const getManpowerPostById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id)
+      return res.status(400).json({ message: "Manpower post id is required" });
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid manpower post id" });
+    }
+
+    // aggregation: match the single post, lookup availableWorkers, project fields
+    const pipeline = [
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: AvailableWorker.collection.name,
+          localField: "availableWorkers",
+          foreignField: "_id",
+          as: "availableWorkers",
+        },
+      },
+      {
+        $project: {
+          details: 1,
+          _id: 1,
+          title: 1,
+          name: 1,
+          city: 1,
+          location: 1,
+          pinCode: 1,
+          status: 1,
+          contactDetails: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          availableWorkers: {
+            $map: {
+              input: "$availableWorkers",
+              as: "w",
+              in: {
+                _id: "$$w._id",
+                type: "$$w.type",
+                count: "$$w.count",
+                status: "$$w.status",
+              },
+            },
+          },
+        },
+      },
+      { $limit: 1 },
+    ];
+
+    const agg = await ManpowerPost.aggregate(pipeline).allowDiskUse(true);
+    const post = (agg && agg[0]) || null;
+
+    if (!post) {
+      return res.status(404).json({ message: "Manpower post not found" });
+    }
+
+    return res.status(200).json({
+      message: "Manpower post fetched",
+      data: post,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching manpower post by id:", err);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
+  }
+};

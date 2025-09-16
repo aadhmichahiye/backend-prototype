@@ -5,6 +5,7 @@ import { authorizeContractor } from "../middleware/authorizeContractor.js";
 import {
   createManpower,
   getAllManpowerPosts,
+  getManpowerPostById,
 } from "../controllers/contractorManPowerController.js";
 import { authorizeClient } from "../middleware/authorizeClient.js";
 
@@ -12,5 +13,6 @@ const router = express.Router();
 
 router.post("/create", verifyAccessToken, authorizeContractor, createManpower);
 router.get("/all", verifyAccessToken, authorizeClient, getAllManpowerPosts);
+router.get("/:id", verifyAccessToken, authorizeClient, getManpowerPostById);
 
 export default router;
