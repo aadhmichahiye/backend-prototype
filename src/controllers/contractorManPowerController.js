@@ -360,3 +360,135 @@ export const getManpowerPostById = async (req, res) => {
       .json({ message: "Server error", error: err.message });
   }
 };
+
+
+export const getManpowerPostsByContractor = async (req, res) => {
+  try {
+    const contractorId = req.user?.id;
+    if (!contractorId) return res.status(401).json({ message: "Unauthorized" });
+
+    if (!mongoose.Types.ObjectId.isValid(contractorId)) {
+      return res.status(400).json({ message: "Invalid contractor id in token" });
+    }
+
+    // pagination & params
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.max(1, Math.min(200, parseInt(req.query.limit || "20", 10)));
+    const skip = (page - 1) * limit;
+
+    const {
+      search,
+      city,
+      status,
+      workerType, // optional: only posts with at least one worker of this type
+      minCount,   // optional: only posts with at least one worker count >= minCount
+      sortBy = "createdAt",
+      sortDir = "desc",
+    } = req.query;
+
+    // Build initial match for post-level fields
+    const match = { details: new mongoose.Types.ObjectId(contractorId) };
+
+    if (city) {
+      match.city = { $regex: String(city).trim(), $options: "i" };
+    }
+
+    if (status) {
+      match.status = String(status).trim();
+    }
+
+    if (search) {
+      const q = String(search).trim();
+      const regex = { $regex: q, $options: "i" };
+      match.$or = [
+        { title: regex },
+        { name: regex },
+        { city: regex },
+        { location: regex },
+        { pinCode: regex },
+        { "contactDetails.phone": regex },
+      ];
+    }
+
+    const pipeline = [];
+
+    // 1) match post-level filters
+    if (Object.keys(match).length) pipeline.push({ $match: match });
+
+    // 2) lookup available worker docs (assumes availableWorkers is array of ObjectId refs)
+    pipeline.push({
+      $lookup: {
+        from: AvailableWorker.collection.name,
+        localField: "availableWorkers",
+        foreignField: "_id",
+        as: "availableWorkers",
+      },
+    });
+
+    // 3) filter by workerType/minCount if requested (post must have at least one matching worker)
+    if (workerType || minCount) {
+      const elemMatch = {};
+      if (workerType) elemMatch.type = { $regex: String(workerType).trim(), $options: "i" };
+      if (minCount) elemMatch.count = { $gte: Number(minCount) };
+      pipeline.push({ $match: { availableWorkers: { $elemMatch: elemMatch } } });
+    }
+
+    // 4) project only required fields (keep availableWorkers as list of objects)
+    pipeline.push({
+      $project: {
+        details: 1, // contractor id
+        _id: 1,
+        title: 1,
+        name: 1,
+        city: 1,
+        location: 1,
+        pinCode: 1,
+        status: 1,
+        contactDetails: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        availableWorkers: {
+          $map: {
+            input: "$availableWorkers",
+            as: "w",
+            in: {
+              _id: "$$w._id",
+              type: "$$w.type",
+              count: "$$w.count",
+              status: "$$w.status",
+            },
+          },
+        },
+      },
+    });
+
+    // 5) sort then facet for pagination + total in one roundtrip
+    const sortOrder = sortDir.toLowerCase() === "asc" ? 1 : -1;
+    const sortObj = { [sortBy]: sortOrder, _id: 1 };
+
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [{ $sort: sortObj }, { $skip: skip }, { $limit: limit }],
+      },
+    });
+
+    // Run aggregation
+    const agg = await ManpowerPost.aggregate(pipeline).allowDiskUse(true);
+
+    const metaDoc = (agg[0] && agg[0].metadata && agg[0].metadata[0]) || { total: 0 };
+    const total = metaDoc.total || 0;
+    const data = (agg[0] && agg[0].data) || [];
+
+    const pages = Math.max(1, Math.ceil(total / limit || 1));
+
+    return res.status(200).json({
+      message: "Contractor's manpower posts fetched",
+      meta: { total, page, limit, pages },
+      data,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching contractor's manpower posts:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
