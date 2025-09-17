@@ -3,6 +3,15 @@ import AvailableWorker from "../models/contractorAvailableWorkersSchema.js";
 import ManpowerPost from "../models/contractorManPowerAvailableSchema.js";
 import User from "../models/userSchema.js";
 
+// controllers/contractorController.js (or wherever createManpower lives)
+
+/**
+ * Create manpower post — accepts payload shape similar to the example:
+ * {
+ *  name, city, location, pincode (or pinCode), phone (optional),
+ *  status (optional), workers: [{type, count}, ...] OR availableWorkers
+ * }
+ */
 export const createManpower = async (req, res) => {
   try {
     const contractorId = req.user?.id;
@@ -11,6 +20,7 @@ export const createManpower = async (req, res) => {
     const user = await User.findById(contractorId).select("_id name phone");
     if (!user) return res.status(404).json({ message: "Contractor not found" });
 
+    // accept both names
     const {
       title,
       description,
@@ -19,7 +29,11 @@ export const createManpower = async (req, res) => {
       pinCode,
       availableWorkers,
       name,
+      phone,
+      status,
     } = req.body ?? {};
+
+    const finalPin = (pinCode || "").toString().trim();
 
     // Basic validations
     if (!city || !location) {
@@ -28,63 +42,89 @@ export const createManpower = async (req, res) => {
         .json({ message: "city and location are required" });
     }
 
-    if (!Array.isArray(availableWorkers) || availableWorkers.length === 0) {
+    const workersArr = Array.isArray(availableWorkers)
+      ? availableWorkers
+      : Array.isArray(workers)
+      ? workers
+      : null;
+
+    if (!Array.isArray(workersArr) || workersArr.length === 0) {
       return res
         .status(400)
-        .json({ message: "availableWorkers must be a non-empty array" });
+        .json({ message: "workers must be a non-empty array" });
     }
 
     // Validate each worker item
-    for (const [i, w] of availableWorkers.entries()) {
+    for (const [i, w] of workersArr.entries()) {
       if (!w || typeof w !== "object") {
         return res
           .status(400)
-          .json({ message: `availableWorkers[${i}] must be an object` });
+          .json({ message: `workers[${i}] must be an object` });
       }
       if (!w.type) {
         return res
           .status(400)
-          .json({ message: `availableWorkers[${i}].type is required` });
+          .json({ message: `workers[${i}].type is required` });
       }
       if (w.count === undefined || w.count === null || w.count === "") {
         return res
           .status(400)
-          .json({ message: `availableWorkers[${i}].count is required` });
+          .json({ message: `workers[${i}].count is required` });
       }
       const cnt = Number(w.count);
       if (!Number.isFinite(cnt) || cnt <= 0) {
         return res.status(400).json({
-          message: `availableWorkers[${i}].count must be a positive number`,
+          message: `workers[${i}].count must be a positive number`,
         });
       }
       // normalize count to integer
       w.count = Math.floor(cnt);
     }
 
-    if (!pinCode || pinCode.trim() === "") {
-      return res.status(400).json({ message: "pinCode is required" });
+    if (!finalPin) {
+      return res.status(400).json({ message: "pincode (pinCode) is required" });
+    }
+
+    // phone handling: prefer authenticated user's phone, allow override by body if valid
+    const phoneCandidate = (user.phone && String(user.phone).trim()) || null;
+    const bodyPhoneStr = phone ? String(phone).trim() : null;
+
+    // simple phone normalization: if bodyPhone provided and looks numeric (10-15 digits), accept it
+    let contactPhone = phoneCandidate;
+    if (bodyPhoneStr) {
+      const digits = bodyPhoneStr.replace(/\D/g, "");
+      if (digits.length >= 10 && digits.length <= 15) {
+        // try to keep E.164-ish: add + if not present and likely local (optional)
+        contactPhone = bodyPhoneStr.startsWith("+")
+          ? bodyPhoneStr
+          : `+${digits}`;
+      } else {
+        return res
+          .status(400)
+          .json({ message: "Invalid phone format in body" });
+      }
     }
 
     // Create manpower post
     const manpowerPost = await ManpowerPost.create({
       details: contractorId,
-      title: title || `${user.name} - Manpower Post`,
+      title: title || `${name || user.name} - Manpower Post`,
       description: description || "",
       city,
       location,
-      pinCode: pinCode || "",
-      status: "open",
+      pinCode: finalPin,
+      status: status || "open",
       name: name || user.name,
-      contactDetails: { phone: user.phone },
+      contactDetails: { phone: contactPhone },
     });
 
     // Create available worker documents and link them
     const createdWorkers = await AvailableWorker.insertMany(
-      availableWorkers.map((worker) => ({
+      workersArr.map((worker) => ({
         type: worker.type,
         count: worker.count,
         jobDetails: manpowerPost._id,
-        status: "available",
+        status: worker.status || "available",
         contractorId: contractorId,
       }))
     );
@@ -93,7 +133,7 @@ export const createManpower = async (req, res) => {
     manpowerPost.availableWorkers = createdWorkers.map((w) => w._id);
     await manpowerPost.save();
 
-    // populate availableWorkers for response (optional)
+    // populate availableWorkers for response
     const populated = await ManpowerPost.findById(manpowerPost._id)
       .populate({
         path: "availableWorkers",
