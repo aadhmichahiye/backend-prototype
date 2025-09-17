@@ -129,7 +129,7 @@ export const createJobPost = async (req, res) => {
     });
   }
 };
-export const getClientJobPosts = async (req, res) => {
+export const getClientMyJobPosts = async (req, res) => {
   try {
     const clientId = req.user?.id;
     if (!clientId) return res.status(401).json({ message: "Unauthorized" });
@@ -413,6 +413,136 @@ export const deleteClientJobPostById = async (req, res) => {
     return res.status(204).send();
   } catch (err) {
     console.error("❌ Error deleting job post:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+
+export const getAllClientJobPostsForContractors = async (req, res) => {
+  try {
+    // Ensure requester is authenticated
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    // pagination & params
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.max(1, Math.min(200, parseInt(req.query.limit || "20", 10)));
+    const skip = (page - 1) * limit;
+
+    const {
+      search,
+      city,
+      status,
+      workerType, // optional filter on required worker type
+      minCount, // optional filter: required worker count >= minCount
+      sortBy = "createdAt",
+      sortDir = "desc",
+    } = req.query;
+
+    // Build initial match for post-level fields
+    const match = {};
+
+    if (city) {
+      match.city = { $regex: String(city).trim(), $options: "i" };
+    }
+
+    if (status) {
+      match.status = String(status).trim();
+    }
+
+    if (search) {
+      const q = String(search).trim();
+      const regex = { $regex: q, $options: "i" };
+      match.$or = [
+        { title: regex },
+        { description: regex },
+        { city: regex },
+        { location: regex },
+        { pinCode: regex },
+        { "contactDetails.phone": regex },
+      ];
+    }
+
+    const pipeline = [];
+
+    // 1) match post-level filters
+    if (Object.keys(match).length) pipeline.push({ $match: match });
+
+    // 2) lookup required worker docs (assumes requiredWorkers is array of ObjectId refs)
+    pipeline.push({
+      $lookup: {
+        from: RequiredWorker.collection.name,
+        localField: "requiredWorkers",
+        foreignField: "_id",
+        as: "requiredWorkers",
+      },
+    });
+
+    // 3) if workerType or minCount present, filter posts which have at least one requiredWorker matching
+    if (workerType || minCount) {
+      const elemMatch = {};
+      if (workerType) elemMatch.type = { $regex: String(workerType).trim(), $options: "i" };
+      if (minCount) elemMatch.count = { $gte: Number(minCount) };
+      pipeline.push({ $match: { requiredWorkers: { $elemMatch: elemMatch } } });
+    }
+
+    // 4) project only required fields (we keep requiredWorkers as list of objects)
+    pipeline.push({
+      $project: {
+        details: 1,           // client id
+        _id: 1,
+        title: 1,
+        description: 1,
+        city: 1,
+        location: 1,
+        pinCode: 1,
+        status: 1,
+        contactDetails: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        requiredWorkers: {
+          $map: {
+            input: "$requiredWorkers",
+            as: "w",
+            in: {
+              _id: "$$w._id",
+              type: "$$w.type",
+              count: "$$w.count",
+              status: "$$w.status",
+            },
+          },
+        },
+      },
+    });
+
+    // 5) sort then facet for pagination + total in one roundtrip
+    const sortOrder = sortDir.toLowerCase() === "asc" ? 1 : -1;
+    const sortObj = { [sortBy]: sortOrder, _id: 1 };
+
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [{ $sort: sortObj }, { $skip: skip }, { $limit: limit }],
+      },
+    });
+
+    // Run aggregation
+    const agg = await ClientJobPost.aggregate(pipeline).allowDiskUse(true);
+
+    const metaDoc = (agg[0] && agg[0].metadata && agg[0].metadata[0]) || { total: 0 };
+    const total = metaDoc.total || 0;
+    const data = (agg[0] && agg[0].data) || [];
+
+    const pages = Math.max(1, Math.ceil(total / limit || 1));
+
+    return res.status(200).json({
+      message: "Client job posts fetched",
+      meta: { total, page, limit, pages },
+      data,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching client job posts for contractors:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };

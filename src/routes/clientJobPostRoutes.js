@@ -5,15 +5,22 @@ import { authorizeClient } from "../middleware/authorizeClient.js";
 import {
   createJobPost,
   deleteClientJobPostById,
-  getClientJobPosts,
+  getAllClientJobPostsForContractors,
+  getClientMyJobPosts,
   getJobPostById,
   updateJobPostById,
 } from "../controllers/clientJobPostController.js";
+import { authorizeContractor } from "../middleware/authorizeContractor.js";
 
 const router = express.Router();
 
 router.post("/create", verifyAccessToken, authorizeClient, createJobPost);
-router.get("/my-posts", verifyAccessToken, authorizeClient, getClientJobPosts);
+router.get(
+  "/my-posts",
+  verifyAccessToken,
+  authorizeClient,
+  getClientMyJobPosts
+);
 router.get("/my-posts/:id", verifyAccessToken, authorizeClient, getJobPostById);
 router.post(
   "/my-posts/update/:id",
@@ -26,5 +33,12 @@ router.delete(
   verifyAccessToken,
   authorizeClient,
   deleteClientJobPostById
+);
+
+router.get(
+  "/all",
+  verifyAccessToken,
+  authorizeContractor,
+  getAllClientJobPostsForContractors
 );
 export default router;
