@@ -42,7 +42,7 @@ export const refreshAccessToken = async (req, res) => {
         message: "Authentication service unavailable. Please try again later.",
       });
     }
-
+    console.log("Refresh token record:", record);
     if (!record || record.revoked) {
       return res
         .status(401)
@@ -58,7 +58,6 @@ export const refreshAccessToken = async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-
 
     // 4) Issue a new access token
     const newAccessToken = generateAccessToken({
