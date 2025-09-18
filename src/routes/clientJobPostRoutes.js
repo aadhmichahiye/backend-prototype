@@ -22,6 +22,12 @@ router.get(
   getClientMyJobPosts
 );
 router.get("/my-posts/:id", verifyAccessToken, authorizeClient, getJobPostById);
+router.get(
+  "/details/:id",
+  verifyAccessToken,
+  authorizeContractor,
+  getJobPostById
+);
 router.post(
   "/my-posts/update/:id",
   verifyAccessToken,
