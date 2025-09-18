@@ -138,11 +138,10 @@ export const loginUser = async (req, res) => {
     // Cookie options — adapt domain/path per your deployment
     res.cookie("refreshToken", refreshTokenJwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // only send over HTTPS in prod
-      sameSite: "Strict",
+      secure: process.env.NODE_ENV === "production", // true on prod (HTTPS)
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
       expires: new Date(expiresAt),
-      // Optionally add `domain` if needed: domain: 'yourdomain.com'
     });
 
     // Return access token and user (no refresh token in body)
