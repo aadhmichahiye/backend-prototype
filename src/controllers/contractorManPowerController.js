@@ -175,34 +175,21 @@ export const getAllManpowerPosts = async (req, res) => {
     } = req.query;
 
     // Build initial match for post-level fields
-    const match = {};
+    const preLookupMatch = {};
 
     if (city) {
-      match.city = { $regex: String(city).trim(), $options: "i" };
+      preLookupMatch.city = { $regex: String(city).trim(), $options: "i" };
     }
 
     if (status) {
-      match.status = String(status).trim();
-    }
-
-    if (search) {
-      const q = String(search).trim();
-      const regex = { $regex: q, $options: "i" };
-      // match against title/name/city/location/pinCode/contact phone
-      match.$or = [
-        { title: regex },
-        { name: regex },
-        { city: regex },
-        { location: regex },
-        { pinCode: regex },
-        { "contactDetails.phone": regex },
-      ];
+      preLookupMatch.status = String(status).trim();
     }
 
     const pipeline = [];
 
-    // 1) match post-level filters
-    if (Object.keys(match).length) pipeline.push({ $match: match });
+    // 1) match post-level filters first (keep this early for performance)
+    if (Object.keys(preLookupMatch).length)
+      pipeline.push({ $match: preLookupMatch });
 
     // 2) lookup available worker docs (assumes availableWorkers is array of ObjectId refs)
     pipeline.push({
@@ -214,7 +201,8 @@ export const getAllManpowerPosts = async (req, res) => {
       },
     });
 
-    // 3) if workerType or minCount present, filter posts which have at least one worker matching
+    // 3) If workerType or minCount present, filter posts which have at least one worker matching
+    //    We'll also allow 'search' to match worker.type by applying a post-lookup $match below.
     if (workerType || minCount) {
       const elemMatch = {};
       if (workerType)
@@ -225,13 +213,37 @@ export const getAllManpowerPosts = async (req, res) => {
       });
     }
 
-    // 4) project only required fields (we keep availableWorkers as list of objects)
+    // 4) Apply search if present. Search should match post-level fields OR worker types/phone.
+    if (search) {
+      const q = String(search).trim();
+      const regex = { $regex: q, $options: "i" };
+
+      // Post-level ORs
+      const postOrs = [
+        { title: regex },
+        { name: regex },
+        { city: regex },
+        { location: regex },
+        { pinCode: regex },
+        { "contactDetails.phone": regex },
+        { description: regex },
+      ];
+
+      // Worker-level OR (match if any available worker type matches)
+      // Use $elemMatch so we avoid unwinding
+      const workerOr = { availableWorkers: { $elemMatch: { type: regex } } };
+
+      pipeline.push({ $match: { $or: [...postOrs, workerOr] } });
+    }
+
+    // 5) project only required fields (we keep availableWorkers as list of objects)
     pipeline.push({
       $project: {
         details: 1, // contractor id
         _id: 1,
         title: 1,
         name: 1,
+        description: 1,
         city: 1,
         location: 1,
         pinCode: 1,
@@ -255,7 +267,7 @@ export const getAllManpowerPosts = async (req, res) => {
       },
     });
 
-    // 5) sort then facet for pagination + total in one roundtrip
+    // 6) sort then facet for pagination + total in one roundtrip
     const sortOrder = sortDir.toLowerCase() === "asc" ? 1 : -1;
     const sortObj = { [sortBy]: sortOrder, _id: 1 };
 
@@ -827,5 +839,3 @@ export const updateManpowerPostById = async (req, res) => {
       .json({ message: "Failed to update manpower post", error: msg });
   }
 };
-
-
